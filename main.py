@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import requests
+import plotly.express as px
 
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -52,9 +53,6 @@ def get_yesterday_korea():
 def get_daily_boxoffice(target_date, api_key):
     """
     같은 날짜의 조회 결과를 1시간 동안 캐시에 저장합니다.
-
-    target_date : 조회 날짜
-    api_key     : KOBIS 인증키
     """
 
     # KOBIS 일별 박스오피스 API 주소
@@ -71,6 +69,7 @@ def get_daily_boxoffice(target_date, api_key):
     }
 
     try:
+
         # KOBIS API 요청
         response = requests.get(
             url,
@@ -79,6 +78,7 @@ def get_daily_boxoffice(target_date, api_key):
         )
 
     except requests.exceptions.RequestException as e:
+
         raise RuntimeError(
             "KOBIS API 서버에 연결하지 못했습니다.\n\n"
             f"네트워크 오류: {e}"
@@ -89,6 +89,7 @@ def get_daily_boxoffice(target_date, api_key):
     # =====================================================
 
     if response.status_code != 200:
+
         raise RuntimeError(
             "KOBIS API 요청에 실패했습니다.\n\n"
             f"HTTP 상태 코드: {response.status_code}"
@@ -99,9 +100,11 @@ def get_daily_boxoffice(target_date, api_key):
     # =====================================================
 
     try:
+
         data = response.json()
 
     except ValueError:
+
         raise RuntimeError(
             "KOBIS API가 정상적인 JSON 데이터를 반환하지 않았습니다."
         )
@@ -110,19 +113,17 @@ def get_daily_boxoffice(target_date, api_key):
     # KOBIS faultInfo 오류 확인
     # =====================================================
 
-    # KOBIS는 인증키가 잘못되어도 HTTP 200을 반환할 수 있으므로
-    # faultInfo를 반드시 확인해야 합니다.
+    # 인증키가 틀려도 HTTP 200이 올 수 있기 때문에
+    # 반드시 faultInfo를 확인합니다.
     if "faultInfo" in data:
 
         fault = data["faultInfo"]
 
-        # 오류 코드
         error_code = fault.get(
             "errorCode",
             "확인할 수 없음"
         )
 
-        # 오류 메시지
         error_message = fault.get(
             "message",
             fault.get(
@@ -138,13 +139,13 @@ def get_daily_boxoffice(target_date, api_key):
         )
 
     # =====================================================
-    # boxOfficeResult 존재 여부 확인
+    # boxOfficeResult 확인
     # =====================================================
 
     if "boxOfficeResult" not in data:
+
         raise RuntimeError(
-            "API 응답에 boxOfficeResult가 없습니다.\n\n"
-            "KOBIS API 응답 형식을 확인해 주세요."
+            "API 응답에 boxOfficeResult가 없습니다."
         )
 
     boxoffice_result = data["boxOfficeResult"]
@@ -158,11 +159,9 @@ def get_daily_boxoffice(target_date, api_key):
         []
     )
 
-    # =====================================================
     # 영화 목록이 비어 있는 경우
-    # =====================================================
-
     if not movie_list:
+
         raise RuntimeError(
             f"{target_date} 날짜의 박스오피스 영화 목록이 비어 있습니다.\n\n"
             "조회 날짜가 올바른지, 해당 날짜의 데이터가 "
@@ -215,8 +214,7 @@ try:
 
         st.stop()
 
-    # Secrets에서 인증키 가져오기
-    # 혹시 앞뒤에 공백이 있으면 제거
+    # 인증키 불러오기
     api_key = str(
         st.secrets["KOBIS_KEY"]
     ).strip()
@@ -264,35 +262,33 @@ except Exception as e:
         "박스오피스 데이터를 불러오지 못했습니다."
     )
 
-    # 실제 오류 메시지 표시
-    st.warning(str(e))
+    st.warning(
+        str(e)
+    )
 
-    # =====================================================
-    # 사용자가 확인할 사항
-    # =====================================================
-
-    st.subheader("확인해 볼 사항")
+    st.subheader(
+        "확인해 볼 사항"
+    )
 
     st.markdown(
         """
         1. **Streamlit Cloud → Settings → Secrets에 `KOBIS_KEY`가 있는지 확인**
         2. **KOBIS에서 발급받은 인증키를 정확하게 입력했는지 확인**
-        3. **인증키 앞뒤에 불필요한 공백이나 다른 문자가 없는지 확인**
+        3. **인증키 앞뒤에 공백이나 다른 문자가 없는지 확인**
         4. **Secrets를 수정한 뒤 앱을 다시 실행했는지 확인**
         5. **KOBIS Open API 인증키가 정상적으로 활성화되어 있는지 확인**
-        6. **화면에 표시되는 오류 코드와 오류 메시지 확인**
         """
     )
 
-    # 오류 상세 정보
-    with st.expander("오류 상세 정보 보기"):
+    with st.expander(
+        "오류 상세 정보 보기"
+    ):
 
         st.code(
             str(e),
             language="text"
         )
 
-    # 이후 코드는 실행하지 않음
     st.stop()
 
 
@@ -300,15 +296,14 @@ except Exception as e:
 # 8. API 데이터를 DataFrame으로 변환
 # =========================================================
 
-df = pd.DataFrame(movie_list)
+df = pd.DataFrame(
+    movie_list
+)
 
 
 # =========================================================
 # 9. 문자열 숫자를 실제 숫자로 변환
 # =========================================================
-
-# KOBIS API에서는 숫자도 문자열 형태로 전달됩니다.
-# 정렬과 그래프를 위해 실제 숫자로 변환합니다.
 
 numeric_columns = [
     "rank",
@@ -331,7 +326,7 @@ for column in numeric_columns:
 
 
 # =========================================================
-# 10. 순위 기준 정렬
+# 10. 순위 기준으로 정렬
 # =========================================================
 
 df = df.sort_values(
@@ -348,9 +343,12 @@ df = df.sort_values(
 
 first_movie = df.iloc[0]
 
+
 st.divider()
 
-st.subheader("🥇 어제의 1위 영화")
+st.subheader(
+    "🥇 어제의 1위 영화"
+)
 
 st.markdown(
     f"## {first_movie['movieNm']}"
@@ -364,10 +362,7 @@ st.markdown(
 col1, col2, col3 = st.columns(3)
 
 
-# ---------------------------------------------------------
 # 어제 관객수
-# ---------------------------------------------------------
-
 with col1:
 
     st.metric(
@@ -376,10 +371,7 @@ with col1:
     )
 
 
-# ---------------------------------------------------------
 # 누적 관객수
-# ---------------------------------------------------------
-
 with col2:
 
     st.metric(
@@ -388,10 +380,7 @@ with col2:
     )
 
 
-# ---------------------------------------------------------
 # 스크린수
-# ---------------------------------------------------------
-
 with col3:
 
     st.metric(
@@ -406,11 +395,22 @@ with col3:
 
 st.divider()
 
-st.subheader("📊 관객수 상위 5편")
+st.subheader(
+    "📊 관객수 상위 5편"
+)
 
 
-# 관객수를 기준으로 내림차순 정렬합니다.
-# 관객수가 가장 많은 영화가 가장 먼저 오도록 합니다.
+# ---------------------------------------------------------
+# 관객수 기준으로 내림차순 정렬
+#
+# ascending=False
+# → 관객수가 많은 영화가 먼저 나옵니다.
+#
+# 따라서 왼쪽부터
+# 1위 → 2위 → 3위 → 4위 → 5위
+# 순서로 표시됩니다.
+# ---------------------------------------------------------
+
 top5_df = (
     df.sort_values(
         by="audiCnt",
@@ -421,16 +421,59 @@ top5_df = (
 )
 
 
-# 그래프에 사용할 데이터입니다.
-# 영화명을 그래프의 이름으로 사용합니다.
-chart_df = top5_df.set_index(
-    "movieNm"
-)[["audiCnt"]]
+# ---------------------------------------------------------
+# Plotly 그래프 생성
+#
+# category_orders를 사용하여
+# 영화 이름의 순서를 강제로 지정합니다.
+# ---------------------------------------------------------
+
+fig = px.bar(
+    top5_df,
+    x="movieNm",
+    y="audiCnt",
+    text="audiCnt",
+    category_orders={
+        "movieNm": top5_df["movieNm"].tolist()
+    },
+    labels={
+        "movieNm": "영화명",
+        "audiCnt": "관객수"
+    }
+)
 
 
-# 관객수 많은 순서대로 막대그래프 출력
-st.bar_chart(
-    chart_df
+# 막대 위 숫자 표시 형식
+fig.update_traces(
+    texttemplate="%{text:,}",
+    textposition="outside"
+)
+
+
+# 그래프 레이아웃 설정
+fig.update_layout(
+
+    # 영화명이 왼쪽 → 오른쪽 순서대로 표시되도록
+    xaxis={
+        "categoryorder": "array",
+        "categoryarray": top5_df["movieNm"].tolist()
+    },
+
+    # 그래프 위 제목 제거
+    title=None,
+
+    # 범례 제거
+    showlegend=False,
+
+    # 그래프 높이
+    height=450
+)
+
+
+# Streamlit에 그래프 표시
+st.plotly_chart(
+    fig,
+    use_container_width=True
 )
 
 
@@ -440,10 +483,12 @@ st.bar_chart(
 
 st.divider()
 
-st.subheader("📋 전체 박스오피스 순위")
+st.subheader(
+    "📋 전체 박스오피스 순위"
+)
 
 
-# 표에 표시할 컬럼만 선택합니다.
+# 필요한 컬럼만 선택
 table_df = df[
     [
         "rank",
@@ -460,7 +505,7 @@ table_df = df[
 # 15. 숫자 표시 형식 변경
 # =========================================================
 
-# 순위는 정수로 표시
+# 순위
 table_df["rank"] = (
     table_df["rank"]
     .fillna(0)
@@ -468,7 +513,7 @@ table_df["rank"] = (
 )
 
 
-# 관객수에 쉼표 추가
+# 관객수
 table_df["audiCnt"] = table_df["audiCnt"].apply(
     lambda x: f"{int(x):,}"
     if pd.notna(x)
@@ -476,7 +521,7 @@ table_df["audiCnt"] = table_df["audiCnt"].apply(
 )
 
 
-# 누적관객수에 쉼표 추가
+# 누적 관객수
 table_df["audiAcc"] = table_df["audiAcc"].apply(
     lambda x: f"{int(x):,}"
     if pd.notna(x)
@@ -484,7 +529,7 @@ table_df["audiAcc"] = table_df["audiAcc"].apply(
 )
 
 
-# 스크린수에 쉼표 추가
+# 스크린수
 table_df["scrnCnt"] = table_df["scrnCnt"].apply(
     lambda x: f"{int(x):,}"
     if pd.notna(x)
